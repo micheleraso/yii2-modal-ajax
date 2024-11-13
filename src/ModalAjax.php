@@ -3,7 +3,7 @@
 namespace lo\widgets\modal;
 
 use yii\base\InvalidConfigException;
-use yii\bootstrap\Modal;
+use yii\bootstrap5\Modal;
 use yii\helpers\Html;
 use yii\helpers\Url;
 use yii\web\JsExpression;
