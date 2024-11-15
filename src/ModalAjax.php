@@ -1,9 +1,9 @@
 <?php
 
-namespace lo\widgets\modal;
+namespace micheleraso\widgets\modal;
 
 use yii\base\InvalidConfigException;
-use yii\bootstrap5\Modal;
+use yii\bootstrap4\Modal;
 use yii\helpers\Html;
 use yii\helpers\Url;
 use yii\web\JsExpression;
@@ -12,8 +12,8 @@ use yii\web\View;
 /**
  * Class ModalAjax
  *
- * @package lo\widgets\modal
- * @author  Lukyanov Andrey <loveorigami@mail.ru>
+ * @package micheleraso\widgets\modal
+ * @author  Michele Raso <dev@micheleraso.com>
  */
 class ModalAjax extends Modal
 {
@@ -87,19 +87,24 @@ class ModalAjax extends Modal
      *
      * @return string the rendering result
      */
-    protected function renderHeader()
+    protected function renderHeader(): string
     {
         $button = $this->renderCloseButton();
-        if ($button !== null) {
-            $this->header = $button . "\n<span>" . $this->header . "</span>\n";
-        }
-        if ($this->header !== null) {
-            Html::addCssClass($this->headerOptions, ['widget' => 'modal-header']);
-
-            return Html::tag('div', "\n" . $this->header . "\n", $this->headerOptions);
+        if (isset($this->title)) {
+            Html::addCssClass($this->titleOptions, ['widget' => 'modal-title']);
+            $header = Html::tag('h5', $this->title, $this->titleOptions);
         } else {
-            return null;
+            $header = '';
         }
+
+        if ($button !== null) {
+            $header .= "\n" . $button;
+        } elseif ($header === '') {
+            return '';
+        }
+        Html::addCssClass($this->headerOptions, ['widget' => 'modal-header']);
+
+        return Html::tag('div', "\n" . $header . "\n", $this->headerOptions);
     }
 
     /**
