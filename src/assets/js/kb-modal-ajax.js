@@ -37,6 +37,7 @@
         this.selector = options.selector || null;
         this.initalRequestUrl = options.url;
         this.ajaxSubmit = options.ajaxSubmit;
+
         jQuery(this.element).on('show.bs.modal', this.shown.bind(this));
     };
 
@@ -51,7 +52,7 @@
 
         var self = this;
 
-        if (jQuery(this.element).hasClass('in')) {
+        if (jQuery(this.element).hasClass('show')) {
             return self;
         }
 
@@ -78,16 +79,20 @@
     };
 
     /**
-     * Injects the form of given html into the modal and extecutes css and js
+     * Injects the form of given html into the modal and executes css and js
      * @param  {string} html the html to inject
      */
     ModalAjax.prototype.injectHtml = function (html) {
-        // Find form and inject it
-        //var form = jQuery(html).filter('form');
-
         // Remove existing forms
         if (jQuery(this.element).find('form').length > 0) {
-            jQuery(this.element).find('form').off().yiiActiveForm('destroy').remove();
+            var existingForm = jQuery(this.element).find('form');
+
+            // Destroy Yii ActiveForm if exists
+            if (existingForm.data('yiiActiveForm')) {
+                existingForm.yiiActiveForm('destroy');
+            }
+
+            existingForm.off().remove();
         }
 
         jQuery(this.element).find('.modal-body').html(html);
@@ -111,7 +116,7 @@
         jQuery(html).filter('link[rel="stylesheet"]').each(function () {
             var href = jQuery(this).attr('href');
 
-            if (knownCssLinks.indexOf(href) < 0) {
+            if (href && knownCssLinks.indexOf(href) < 0) {
                 // Append the CSS link to the page
                 headTag.append(jQuery(this).prop('outerHTML'));
                 // Store the link so its not needed to be requested again
@@ -150,6 +155,13 @@
         for (var i = 0; i < newScripts.length; i += 1) {
             jQuery.getScript(newScripts[i] + (new Date().getTime()), scriptLoaded);
         }
+
+        // Execute inline scripts immediately if no external scripts to load
+        if (newScripts.length === 0) {
+            for (var j = 0; j < inlineInjections.length; j += 1) {
+                window.eval(inlineInjections[j]);
+            }
+        }
     };
 
     /**
@@ -158,9 +170,9 @@
     ModalAjax.prototype.formSubmit = function () {
         var form = jQuery(this.element).find('form');
         var self = this;
-        if (form.attr('method') !== 'GET' && window.FormData !== undefined) {
 
-            // Convert form to ajax submit
+        if (form.attr('method') !== 'GET' && window.FormData !== undefined) {
+            // Convert form to ajax submit with FormData
             jQuery.ajax({
                 method: form.attr('method'),
                 url: form.attr('action'),
@@ -185,7 +197,7 @@
                 }
             });
         } else {
-            // Convert form to ajax submit
+            // Convert form to ajax submit with serialized data
             jQuery.ajax({
                 method: form.attr('method'),
                 url: form.attr('action'),
@@ -210,7 +222,6 @@
         }
 
         return false;
-
     };
 
     $.fn[pluginName] = function (options) {
@@ -220,7 +231,6 @@
             } else {
                 $.data(this, pluginName).initalRequestUrl = options.url;
                 $.data(this, pluginName).selector = options.selector || null;
-                //console.log($.data(this, pluginName).initalRequestUrl);
             }
         });
     };
@@ -228,10 +238,10 @@
 
 /**
  * It use for events for adding url query params
- *  for example:
- *  $('#modalID').on('kbModalBeforeShow', function(event, xhr, settings) {
-        settings['url'] = modalUrl(settings['url'], {'foo':21});
-    }).modal('show');
+ * for example:
+ * $('#modalID').on('kbModalBeforeShow', function(event, xhr, settings) {
+       settings['url'] = modalUrl(settings['url'], {'foo':21});
+   }).modal('show');
  * @param url
  * @param json
  * @returns {*}

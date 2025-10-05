@@ -2,8 +2,7 @@
 
 namespace micheleraso\widgets\modal;
 
-use yii\base\InvalidConfigException;
-use yii\bootstrap4\Modal;
+use yii\bootstrap5\Modal;
 use yii\helpers\Html;
 use yii\helpers\Url;
 use yii\web\JsExpression;
@@ -160,42 +159,67 @@ class ModalAjax extends Modal
     protected function registerSingleModal($id, $view)
     {
         $url = is_array($this->url) ? Url::to($this->url) : $this->url;
+        $ajaxSubmit = $this->ajaxSubmit ? 'true' : 'false';
 
         $view->registerJs("
-            jQuery('#$id').kbModalAjax({
-                url: '$url',
-                size:'sm',
-                ajaxSubmit: ".($this->ajaxSubmit ? "true" : "false")."
+            jQuery(document).ready(function() {
+                if (typeof jQuery('#$id').kbModalAjax === 'function') {
+                    jQuery('#$id').kbModalAjax({
+                        url: '$url',
+                        size: 'sm',
+                        ajaxSubmit: $ajaxSubmit
+                    });
+                }
             });
-        ");
+        ", View::POS_READY);
     }
 
     /**
      * @param      $id
      * @param View $view
      */
+    /**
+     * @param      $id
+     * @param View $view
+     */
     protected function registerMultyModal($id, $view)
     {
+        $ajaxSubmit = $this->ajaxSubmit ? 'true' : 'false';
+
         $view->registerJs("
-            jQuery('body').on('click', '$this->selector', function(e) {
+            jQuery(document).off('click', '$this->selector').on('click', '$this->selector', function(e) {
                 e.preventDefault();
-                $(this).attr('data-toggle', 'modal');
-                $(this).attr('data-target', '#$id');
+                e.stopPropagation();
                 
-                var bs_url = $(this).attr('href');
-                var title = $(this).attr('title');
+                var clickedElement = jQuery(this);
+                var bs_url = clickedElement.attr('href');
+                var title = clickedElement.attr('title');
                 
                 if (!title) title = ' ';
                 
-                jQuery('#$id').find('.modal-header span').html(title);
+                var modalElement = jQuery('#$id');
                 
-                jQuery('#$id').kbModalAjax({
-                    selector: $(this),
-                    url: bs_url,
-                    ajaxSubmit: $this->ajaxSubmit
-                });
+                if (modalElement.length > 0) {
+                    // Aggiorna il titolo
+                    modalElement.find('.modal-header h5, .modal-header .modal-title').html(title);
+                    
+                    // Inizializza il plugin se esiste
+                    if (typeof modalElement.kbModalAjax === 'function') {
+                        modalElement.kbModalAjax({
+                            selector: clickedElement,
+                            url: bs_url,
+                            ajaxSubmit: $ajaxSubmit
+                        });
+                    }
+                    
+                    // Mostra il modal con Bootstrap 5
+                    var modal = bootstrap.Modal.getOrCreateInstance(modalElement[0]);
+                    modal.show();
+                }
+                
+                return false;
             });
-        ");
+        ", View::POS_READY);
     }
 
     /**
@@ -206,22 +230,25 @@ class ModalAjax extends Modal
         $expression = [];
 
         if ($this->autoClose) {
-            $expression[] = "$(this).modal('toggle');";
+            // Bootstrap 5: usa bootstrap.Modal invece di modal('toggle')
+            $expression[] = "var modalEl = document.getElementById('{$this->options['id']}'); var modal = bootstrap.Modal.getInstance(modalEl); if(modal) modal.hide();";
         }
 
         if ($this->pjaxContainer) {
-            $expression[] = "$.pjax.reload({container : '$this->pjaxContainer', timeout : $this->pjaxTimeout });";
+            $expression[] = "if (typeof $.pjax !== 'undefined') { $.pjax.reload({container : '$this->pjaxContainer', timeout : $this->pjaxTimeout }); }";
         }
 
-        $script = implode("\r\n", $expression);
+        $script = implode("\r\n                        ", $expression);
 
-        $this->events[self::EVENT_MODAL_SUBMIT] = new JsExpression("
+        if (!empty($script)) {
+            $this->events[self::EVENT_MODAL_SUBMIT] = new JsExpression("
                 function(event, data, status, xhr) {
                     if(status){
                         $script
                     }
                 }
             ");
+        }
     }
 
     /**
@@ -230,14 +257,20 @@ class ModalAjax extends Modal
      */
     protected function registerEvents($id, $view)
     {
-        $js = [];
-        foreach ($this->events as $event => $expression) {
-            $js[] = ".on('$event', $expression)";
+        if (empty($this->events)) {
+            return;
         }
 
-        if ($js) {
-            $script = "jQuery('#$id')" . implode("\r\n", $js);
-            $view->registerJs($script);
+        $js = [];
+        foreach ($this->events as $event => $expression) {
+            // Converti l'espressione in stringa se necessario
+            $expressionStr = $expression instanceof JsExpression ? $expression->expression : $expression;
+            $js[] = ".on('$event', $expressionStr)";
+        }
+
+        if (!empty($js)) {
+            $script = "jQuery('#$id')" . implode("", $js) . ";";
+            $view->registerJs($script, View::POS_READY);
         }
     }
 }
