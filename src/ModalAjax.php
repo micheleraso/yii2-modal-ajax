@@ -109,7 +109,7 @@ class ModalAjax extends Modal
     /**
      * @inheritdocs
      */
-    public function init()
+    public function init(): void
     {
         parent::init();
 
