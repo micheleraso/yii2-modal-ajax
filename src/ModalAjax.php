@@ -121,9 +121,9 @@ class ModalAjax extends Modal
     /**
      * @inheritdocs
      */
-    public function run()
+    public function run(): string
     {
-        parent::run();
+        $result = parent::run();
 
         /** @var View */
         $view = $this->getView();
@@ -132,7 +132,7 @@ class ModalAjax extends Modal
         ModalAjaxAsset::register($view);
 
         if (!$this->url && !$this->selector) {
-            return;
+            return $result;
         }
 
         switch ($this->mode) {
@@ -150,6 +150,8 @@ class ModalAjax extends Modal
         }
 
         $this->registerEvents($id, $view);
+
+        return $result;
     }
 
     /**
